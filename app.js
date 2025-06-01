@@ -3,8 +3,14 @@ const { createApp } = Vue
 createApp({
     data() {
         return {
-            todos: JSON.parse(localStorage.getItem('todos') || '[]'),
-            newTodoText: ''
+            todos: [],
+            newTodoText: '',
+            currentUser: auth.getCurrentUser(),
+            isRegistering: false,
+            username: '',
+            password: '',
+            confirmPassword: '',
+            error: ''
         }
     },
     computed: {
@@ -30,6 +36,61 @@ createApp({
         }
     },
     methods: {
+        // Authentication methods
+        async register() {
+            this.error = ''
+            
+            if (this.password !== this.confirmPassword) {
+                this.error = 'Passwords do not match'
+                return
+            }
+
+            try {
+                const user = auth.register(this.username, this.password)
+                this.currentUser = user
+                auth.setCurrentUser(user)
+                this.resetForm()
+                this.loadTodos()
+            } catch (err) {
+                this.error = err.message
+            }
+        },
+
+        async login() {
+            this.error = ''
+            
+            try {
+                const user = auth.login(this.username, this.password)
+                this.currentUser = user
+                auth.setCurrentUser(user)
+                this.resetForm()
+                this.loadTodos()
+            } catch (err) {
+                this.error = err.message
+            }
+        },
+
+        logout() {
+            auth.logout()
+            this.currentUser = null
+            this.todos = []
+            this.resetForm()
+        },
+
+        resetForm() {
+            this.username = ''
+            this.password = ''
+            this.confirmPassword = ''
+            this.error = ''
+        },
+
+        // Todo methods
+        loadTodos() {
+            if (this.currentUser) {
+                this.todos = this.currentUser.todos || []
+            }
+        },
+
         addTodo() {
             if (!this.newTodoText.trim()) return
 
@@ -43,6 +104,7 @@ createApp({
             this.newTodoText = ''
             this.saveTodos()
         },
+
         removeTodo(todo) {
             const index = this.todos.indexOf(todo)
             if (index > -1) {
@@ -50,6 +112,7 @@ createApp({
                 this.saveTodos()
             }
         },
+
         startEditing(todo) {
             todo.editing = true
             this.$nextTick(() => {
@@ -57,6 +120,7 @@ createApp({
                 if (input) input.focus()
             })
         },
+
         finishEditing(todo) {
             if (!todo.text.trim()) {
                 this.removeTodo(todo)
@@ -65,9 +129,11 @@ createApp({
                 this.saveTodos()
             }
         },
+
         saveTodos() {
-            localStorage.setItem('todos', JSON.stringify(this.todos))
+            auth.saveTodos(this.todos)
         },
+
         formatDate(dateStr) {
             const date = new Date(dateStr)
             const today = new Date()
@@ -88,6 +154,7 @@ createApp({
                 year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
             })
         },
+
         isOverdue(todo) {
             if (!todo.dueDate || todo.completed) return false
             const today = new Date()
@@ -103,6 +170,9 @@ createApp({
             },
             deep: true
         }
+    },
+    mounted() {
+        this.loadTodos()
     },
     directives: {
         focus: {
