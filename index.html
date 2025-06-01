@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Todo App</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .app-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 15px;
+        }
+
+        .app-title {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-size: 2.5rem;
+        }
+
+        .add-todo-form {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .form-control {
+            border: none;
+            padding: 0.8rem;
+        }
+
+        .form-control:focus {
+            box-shadow: none;
+            border-color: #4CAF50;
+        }
+
+        .btn-add {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-add:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .todo-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .todo-text {
+            flex: 1;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .todo-date {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 0.5rem;
+            color: #666;
+        }
+
+        .btn-delete {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-delete:hover {
+            background: #ff3232;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .due-date-warning {
+            color: #ff5252;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+        }
+
+        .todo-edit-input {
+            flex: 1;
+            font-size: 1.1rem;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .todo-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .todo-date {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="py-5">
+    <div id="app" class="container">
+        <div class="app-container">
+            <h1 class="app-title">
+                <i class="fas fa-check-circle text-success"></i>
+                Todo List
+            </h1>
+            
+            <!-- Add new todo form -->
+            <div class="add-todo-form">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        class="form-control form-control-lg" 
+                        v-model="newTodoText" 
+                        placeholder="What needs to be done?" 
+                        @keyup.enter="addTodo">
+                    <button class="btn btn-add" @click="addTodo">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                </div>
+            </div>
+
+            <!-- Todo list -->
+            <div class="todo-list">
+                <div v-if="todos.length === 0" class="empty-state">
+                    <i class="fas fa-clipboard-list fa-3x mb-3 text-muted"></i>
+                    <p class="h5">No tasks yet! Add a new task to get started.</p>
+                </div>
+                
+                <div v-for="todo in sortedTodos" :key="todo.id" class="todo-item">
+                    <div class="d-flex align-items-center w-100">
+                        <input 
+                            type="checkbox" 
+                            class="todo-checkbox form-check-input" 
+                            v-model="todo.completed">
+                        
+                        <span 
+                            v-if="!todo.editing" 
+                            :class="['todo-text', { completed: todo.completed }]" 
+                            @dblclick="startEditing(todo)">
+                            {{ todo.text }}
+                            <small v-if="todo.dueDate" :class="['ms-2', {'text-danger': isOverdue(todo)}]">
+                                <i class="far fa-calendar"></i>
+                                {{ formatDate(todo.dueDate) }}
+                            </small>
+                        </span>
+                        
+                        <input 
+                            v-else 
+                            type="text" 
+                            class="todo-edit-input" 
+                            v-model="todo.text" 
+                            @blur="finishEditing(todo)" 
+                            @keyup.enter="finishEditing(todo)"
+                            v-focus>
+                        
+                        <input 
+                            type="date" 
+                            class="todo-date ms-2" 
+                            v-model="todo.dueDate">
+                        
+                        <button class="btn btn-delete ms-2" @click="removeTodo(todo)">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
